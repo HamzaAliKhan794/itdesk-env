@@ -1,0 +1,17 @@
+name: itdesk-env
+description: IT Helpdesk Incident Triage Environment
+version: 1.0
+
+entrypoint:
+  module: app
+
+observation_space:
+  type: structured
+
+action_space:
+  type: structured
+
+tasks:
+  - easy
+  - medium
+  - hard
