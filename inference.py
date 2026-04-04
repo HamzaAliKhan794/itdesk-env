@@ -133,13 +133,8 @@ def parse_llm_response(response_text: str) -> dict:
         "parameters": parsed_json.get("parameters", {})
     }
     
-    # Dump telemetry for the live Streamlit dashboard 
-    dash_log = {"thought": thought, "action": clean_action}
-    try:
-        with open("dashboard_logs.jsonl", "a") as f:
-            f.write(json.dumps(dash_log) + "\n")
-    except Exception:
-        pass
+    # Pass thought forward for centralized logging
+    clean_action["thought"] = thought
         
     return clean_action
 
@@ -218,7 +213,7 @@ def choose_fallback_action(observation: dict) -> dict:
 
 def run_task(task_name: str) -> float:
     """Run an entire trajectory for a specific task and evaluate the final score."""
-    print(f"\n--- Starting Task: {task_name.upper()} ---")
+    print(f"[START] Task: {task_name.upper()}")
     
     try:
         observation = None
@@ -268,7 +263,20 @@ def run_task(task_name: str) -> float:
                 # LLM bypass mechanism natively triggers the fallback logic
                 action_dict = choose_fallback_action(observation)
                 
-            print(f"Step {step_count+1} | Action Taken: {action_dict.get('action_type')} | Parameters: {action_dict.get('parameters')}")
+            print(f"[STEP] Action: {action_dict.get('action_type')} | Parameters: {action_dict.get('parameters')}")
+            
+            # Centralized Dashboard Telemetry Logging
+            thought = action_dict.get("thought", "Determined via deterministic fallback heuristics.")
+            clean_action = {
+                "action_type": action_dict.get("action_type", "noop"),
+                "parameters": action_dict.get("parameters", {})
+            }
+            dash_log = {"thought": thought, "action": clean_action}
+            try:
+                with open("dashboard_logs.jsonl", "a") as f:
+                    f.write(json.dumps(dash_log) + "\n")
+            except Exception:
+                pass
             
             step_res = call_step(action_dict)
             if step_res:
@@ -288,7 +296,7 @@ def run_task(task_name: str) -> float:
         final_state = State(**internal_state_dict)
         
         score = grader.evaluate(final_state, task_name)
-        print(f"Task {task_name.upper()} Final Score: {score}")
+        print(f"[END] Task {task_name.upper()} Score: {score}")
         return score
         
     except Exception as e:

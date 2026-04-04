@@ -1,0 +1,5 @@
+{"thought": "Determined via deterministic fallback heuristics.", "action": {"action_type": "classify_issue", "parameters": {"category": "security_issue"}}}
+{"thought": "Determined via deterministic fallback heuristics.", "action": {"action_type": "set_priority", "parameters": {"severity": "critical"}}}
+{"thought": "Determined via deterministic fallback heuristics.", "action": {"action_type": "assign_team", "parameters": {"team": "security_ops"}}}
+{"thought": "Determined via deterministic fallback heuristics.", "action": {"action_type": "escalate_incident", "parameters": {}}}
+{"thought": "Determined via deterministic fallback heuristics.", "action": {"action_type": "resolve_ticket", "parameters": {}}}
