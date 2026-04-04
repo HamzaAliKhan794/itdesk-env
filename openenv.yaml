@@ -3,7 +3,7 @@ description: IT Helpdesk Incident Triage Environment
 version: 1.0
 
 entrypoint:
-  module: app
+  module: server.app
 
 observation_space:
   type: structured
