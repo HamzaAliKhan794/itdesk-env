@@ -44,19 +44,42 @@ Beyond the cumulative fractional rewards within the loop, the absolute performan
 ---
 
 ## Setup Instructions
-Clone the repository, create a virtual environment, and install the base components needed:
+Clone the repository, create a virtual environment, and install the required dependencies:
 ```bash
 git clone https://github.com/yourusername/itdesk-env.git
 cd itdesk-env
 pip install -r requirements.txt
+pip install streamlit matplotlib numpy
 ```
 
-## Running Locally
+## Running Locally (Hackathon Demo)
+
+1. **Start the Live Simulator:**
 Spool up the native FastAPI simulation instance using `uvicorn`:
 ```bash
 uvicorn app:app --reload
 ```
-You can then run the built-in evaluation wrapper `inference.py` to test an OpenAI model against the tasks!
+
+2. **Start the Visual Triage Dashboard:**
+Open a new terminal to start the live telemetry UI:
+```bash
+streamlit run app_dashboard.py
+```
+
+3. **Run the LLM Evaluation:**
+Trigger Llama-3 evaluation to populate the local telemetry dynamically. We use the Groq API for rapid inference (replace with your key):
+```powershell
+$env:API_BASE_URL="https://api.groq.com/openai/v1"
+$env:MODEL_NAME="llama-3.3-70b-versatile"
+$env:OPENAI_API_KEY="gsk_..."
+python inference.py
+```
+
+4. **Generate Radar Metrics:**
+After the evaluation finishes, plot the success graph for your presentation:
+```bash
+python generate_report.py
+```
 
 ## Docker Instructions
 ITDesk-Env is fully containerized for scalable architecture. You can easily build and spin it up:

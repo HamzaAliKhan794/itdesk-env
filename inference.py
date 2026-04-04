@@ -85,20 +85,24 @@ def format_prompt(observation: dict) -> tuple[str, str]:
     sys_prompt = (
         "You are an IT Helpdesk Triage Agent. You must output exactly one JSON object representing your action.\n"
         "Valid action_types:\n"
-        " - classify_issue (requires 'category' inside parameters)\n"
-        " - set_priority (requires 'severity' inside parameters)\n"
-        " - assign_team (requires 'team' inside parameters)\n"
+        " - classify_issue (requires 'category' inside parameters. Must be one of: 'security_issue', 'network_issue', 'access_issue')\n"
+        " - set_priority (requires 'severity' inside parameters. Must select exactly from 'allowed_priorities' in the observation)\n"
+        " - assign_team (requires 'team' inside parameters. Must select exactly from 'allowed_teams' in the observation)\n"
         " - escalate_incident\n"
         " - flag_duplicate_cluster\n"
         " - resolve_ticket\n"
         " - noop\n\n"
         "Example output:\n"
         "{\n"
-        '  "action_type": "assign_team",\n'
-        '  "parameters": {"team": "network_team"}\n'
+        '  "thought": "This ticket mentions critical data access loss, indicating a high severity access issue.",\n'
+        '  "action_type": "classify_issue",\n'
+        '  "parameters": {"category": "access_issue"}\n'
         "}\n\n"
-        "Analyze the provided observation and generate the best next action to correctly route and resolve this IT ticket.\n"
-        "Only output pure JSON. Do not write markdown or explanations."
+        "CRITICAL RULES:\n"
+        "1. You MUST include a 'thought' key explaining your reasoning step-by-step BEFORE the 'action_type' key.\n"
+        "2. If an action requires no parameters, you MUST output an empty object {} for parameters, NEVER null.\n"
+        "3. Review the 'history' in your observation. DO NOT repeat an action you have already performed. Always progress the workflow incrementally.\n"
+        "4. Only output pure JSON. Do not write markdown, code blocks, or explanations."
     )
     
     user_prompt = f"Current Observation:\n{json.dumps(observation, indent=2)}"
@@ -109,11 +113,35 @@ def parse_llm_response(response_text: str) -> dict:
     text = response_text.strip()
     if text.startswith("```json"):
         text = text[7:]
-    if text.startswith("```"):
+    elif text.startswith("```"):
         text = text[3:]
     if text.endswith("```"):
         text = text[:-3]
-    return json.loads(text.strip())
+        
+    parsed_json = json.loads(text.strip())
+    
+    thought = parsed_json.get("thought", "")
+    if thought:
+        print(f"\n[Agent Thought]: {thought}")
+        
+    if "parameters" in parsed_json and parsed_json["parameters"] is None:
+        parsed_json["parameters"] = {}
+        
+    # Strip thought so it doesn't break strict pydantic if extra=forbid
+    clean_action = {
+        "action_type": parsed_json.get("action_type", "noop"),
+        "parameters": parsed_json.get("parameters", {})
+    }
+    
+    # Dump telemetry for the live Streamlit dashboard 
+    dash_log = {"thought": thought, "action": clean_action}
+    try:
+        with open("dashboard_logs.jsonl", "a") as f:
+            f.write(json.dumps(dash_log) + "\n")
+    except Exception:
+        pass
+        
+    return clean_action
 
 def choose_fallback_action(observation: dict) -> dict:
     """
@@ -205,6 +233,13 @@ def run_task(task_name: str) -> float:
         if not observation:
              print(f"Failed to cleanly initialize {task_name} task.")
              return 0.0
+             
+        # Initialize an empty log file for dashboard when task starts
+        try:
+            with open("dashboard_logs.jsonl", "w") as f:
+                pass
+        except Exception:
+            pass
              
         done = False
         step_count = 0
