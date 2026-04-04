@@ -17,10 +17,10 @@ ENV_URL = "http://127.0.0.1:8000"
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
 DEFAULT_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
-API_BASE_URL = os.environ.get("API_BASE_URL", DEFAULT_API_BASE_URL)
-MODEL_NAME = os.environ.get("MODEL_NAME", DEFAULT_MODEL_NAME)
-HF_TOKEN = os.environ.get("HF_TOKEN", "")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+API_BASE_URL = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
+MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
+HF_TOKEN = os.getenv("HF_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 grader = Grader()
 TASKS = ["easy", "medium", "hard"]
