@@ -41,6 +41,45 @@ The environment stubs three deterministic tasks matching `easy`, `medium`, and `
 ## Grading Methodology
 Beyond the cumulative fractional rewards within the loop, the absolute performance of an agent's trajectory is evaluated deterministically by the `Grader`. Each task variant carries additive internal checks validating the correct pipeline flags (`classification`, `priority`, `assigned_team`, `escalation`, and terminal `resolution`). Final grading scores perfectly cap at `1.0` if no components were missed or wrongly typed.
 
+## 🚀 Guide to Test and Start
+Welcome! If you are exploring this repository, here is a simple explanation of how this pipeline works.
+
+### How the System Works in Plain English
+1. **The Environment (`app.py`)**: This is a standalone simulation server that pretends to be a real, rigid corporate IT ticketing system. It tracks ticket state, handles team assignments, and prevents cheating. 
+2. **The Visuals (`app_dashboard.py`)**: A live-updating Web UI that monitors the ticketing system logs.
+3. **The Brain (`inference.py`)**: This script triggers Meta's `Llama-3.3-70B` (hosted by Groq for speed) to analyze three specific tickets (`EASY`, `MEDIUM`, `HARD`), execute a "Chain-of-Thought" (ReAct) reasoning loop, and send actions back to the Environment.
+
+### Step-by-Step Test Run
+To see the magic happen natively, open three separate Terminal windows in this repository folder:
+
+* **Terminal 1: Start the Backend Simulator**
+  ```bash
+  pip install -r requirements.txt
+  uvicorn app:app --reload
+  ```
+
+* **Terminal 2: Launch the Web Dashboard**
+  ```bash
+  pip install streamlit matplotlib numpy
+  streamlit run app_dashboard.py
+  ```
+  *(A web browser will automatically open showing the live ticket monitor).*
+
+* **Terminal 3: Trigger the AI Agent**
+  Provide your Groq API key and execute the environment loop. Watch the Web Dashboard update dynamically!
+  ```powershell
+  $env:API_BASE_URL="https://api.groq.com/openai/v1"
+  $env:MODEL_NAME="llama-3.3-70b-versatile"
+  $env:OPENAI_API_KEY="your_groq_api_key_here"
+  python inference.py
+  ```
+
+* **Final Step: See the AI's Report Card**
+  ```bash
+  python generate_report.py
+  ```
+  *(Check your folder for a `radar_chart.png` graphic showing exactly how well Llama-3 scored!)*
+
 ---
 
 ## Setup Instructions
