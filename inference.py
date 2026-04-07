@@ -216,94 +216,84 @@ def run_task(task_name: str) -> float:
     """Run an entire trajectory for a specific task and evaluate the final score."""
     print(f"[START] Task: {task_name.upper()}")
     
+    observation = None
+    # Loop reset until the randomly selected scenario matches the requested task
+    for _ in range(50):
+        obs = call_reset()
+        task_tag_map = {"easy": "-E", "medium": "-M", "hard": "-H"}
+        if task_tag_map[task_name] in obs.get("ticket_id", ""):
+            observation = obs
+            break
+            
+    if not observation:
+         print(f"Failed to cleanly initialize {task_name} task.")
+         return 0.0
+         
+    # Initialize an empty log file for dashboard when task starts
     try:
-        observation = None
-        # Loop reset until the randomly selected scenario matches the requested task
-        for _ in range(50):
-            obs = call_reset()
-            task_tag_map = {"easy": "-E", "medium": "-M", "hard": "-H"}
-            if task_tag_map[task_name] in obs.get("ticket_id", ""):
-                observation = obs
-                break
-                
-        if not observation:
-             print(f"Failed to cleanly initialize {task_name} task.")
-             return 0.0
-             
-        # Initialize an empty log file for dashboard when task starts
+        with open("dashboard_logs.jsonl", "w") as f:
+            pass
+    except Exception:
+        pass
+         
+    done = False
+    step_count = 0
+    max_steps = observation.get("max_steps", 15)
+    
+    while not done and step_count < max_steps:
+        sys_prompt, user_prompt = format_prompt(observation)
+        action_dict = None
+        
+        if is_llm_enabled():
+            completion = client.chat.completions.create(
+                model=os.environ["MODEL_NAME"],
+                messages=[
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.0, # Deterministic reasoning
+            )
+            response_text = completion.choices[0].message.content
+            action_dict = parse_llm_response(response_text)
+        else:
+            # LLM bypass mechanism natively triggers the fallback logic
+            action_dict = choose_fallback_action(observation)
+            
+        print(f"[STEP] Action: {action_dict.get('action_type')} | Parameters: {action_dict.get('parameters')}")
+        
+        # Centralized Dashboard Telemetry Logging
+        thought = action_dict.get("thought", "Determined via deterministic fallback heuristics.")
+        clean_action = {
+            "action_type": action_dict.get("action_type", "noop"),
+            "parameters": action_dict.get("parameters", {})
+        }
+        dash_log = {"thought": thought, "action": clean_action}
         try:
-            with open("dashboard_logs.jsonl", "w") as f:
-                pass
+            with open("dashboard_logs.jsonl", "a") as f:
+                f.write(json.dumps(dash_log) + "\n")
         except Exception:
             pass
-             
-        done = False
-        step_count = 0
-        max_steps = observation.get("max_steps", 15)
         
-        while not done and step_count < max_steps:
-            sys_prompt, user_prompt = format_prompt(observation)
-            action_dict = None
-            
-            if is_llm_enabled():
-                try:
-                    completion = client.chat.completions.create(
-                        model=os.environ["MODEL_NAME"],
-                        messages=[
-                            {"role": "system", "content": sys_prompt},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        temperature=0.0, # Deterministic reasoning
-                    )
-                    response_text = completion.choices[0].message.content
-                    action_dict = parse_llm_response(response_text)
-                except Exception as e:
-                    # Print out strict proxy errors to expose Phase 2 LiteLLM issues dynamically
-                    print(f"CRITICAL PROXY ERROR: {e}")
-                    raise e # Hard fail so the validator doesn't mistake Fallback for success!
-            else:
-                # LLM bypass mechanism natively triggers the fallback logic
-                action_dict = choose_fallback_action(observation)
-                
-            print(f"[STEP] Action: {action_dict.get('action_type')} | Parameters: {action_dict.get('parameters')}")
-            
-            # Centralized Dashboard Telemetry Logging
-            thought = action_dict.get("thought", "Determined via deterministic fallback heuristics.")
-            clean_action = {
-                "action_type": action_dict.get("action_type", "noop"),
-                "parameters": action_dict.get("parameters", {})
-            }
-            dash_log = {"thought": thought, "action": clean_action}
-            try:
-                with open("dashboard_logs.jsonl", "a") as f:
-                    f.write(json.dumps(dash_log) + "\n")
-            except Exception:
-                pass
-            
-            step_res = call_step(action_dict)
-            if step_res:
-                observation = step_res.get("observation", {})
-                done = step_res.get("done", True)
-            else:
-                done = True
-            step_count += 1
-            time.sleep(0.1) # Prevent local thread flooding
-            
-        # Get final internal state for grading
-        full_state = call_state()
-        internal_state_dict = full_state.get("internal_state", {})
+        step_res = call_step(action_dict)
+        if step_res:
+            observation = step_res.get("observation", {})
+            done = step_res.get("done", True)
+        else:
+            done = True
+        step_count += 1
+        time.sleep(0.1) # Prevent local thread flooding
         
-        # Convert dictionary recursively to Pydantic model for grader
-        from itdesk_env.models import State
-        final_state = State(**internal_state_dict)
-        
-        score = grader.evaluate(final_state, task_name)
-        print(f"[END] Task {task_name.upper()} Score: {score}")
-        return score
-        
-    except Exception as e:
-        print(f"Error during execution of {task_name}: {e}")
-        return 0.0
+    # Get final internal state for grading
+    full_state = call_state()
+    internal_state_dict = full_state.get("internal_state", {})
+    
+    # Convert dictionary recursively to Pydantic model for grader
+    from itdesk_env.models import State
+    final_state = State(**internal_state_dict)
+    
+    score = grader.evaluate(final_state, task_name)
+    print(f"[END] Task {task_name.upper()} Score: {score}")
+    return score
 
 def main():
     print_execution_mode_summary()

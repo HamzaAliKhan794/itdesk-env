@@ -5,6 +5,9 @@ version: 1.0
 entrypoint:
   module: server.app
 
+agent:
+  module: inference
+
 observation_space:
   type: structured
 
