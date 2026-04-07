@@ -30,7 +30,7 @@ def grade_easy(state: State) -> float:
     if state.assigned_team in ["security_ops", "network_team"]:
         score -= 0.2  # Wrong team
         
-    return max(0.0, min(1.0, score))
+    return max(0.01, min(0.99, score))
 
 
 def grade_medium(state: State) -> float:
@@ -60,7 +60,7 @@ def grade_medium(state: State) -> float:
     if state.assigned_team == "access_support":
         score -= 0.2  # Penalty: Standard tier 1 cannot handle VPN router drops
         
-    return max(0.0, min(1.0, score))
+    return max(0.01, min(0.99, score))
 
 
 def grade_hard(state: State) -> float:
@@ -90,7 +90,7 @@ def grade_hard(state: State) -> float:
     if state.priority in ["low", "medium"]:
         score -= 0.3  # Dangerous underscoping of digital threat
         
-    return max(0.0, min(1.0, score))
+    return max(0.01, min(0.99, score))
 
 
 def grade_task(task_name: str, state: State) -> float:
@@ -102,7 +102,7 @@ def grade_task(task_name: str, state: State) -> float:
          return grade_medium(state)
     elif task_name == "hard":
          return grade_hard(state)
-    return 0.0
+    return 0.01
 
 
 class Grader:
