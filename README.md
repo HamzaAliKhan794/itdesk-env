@@ -1,3 +1,11 @@
+---
+title: ITDesk Env
+emoji: 🏢
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+---
 # ITDesk-Env
 
 ITDesk-Env is a production-ready OpenEnv simulation framework that evaluates Large Language Models (LLMs) and autonomous agents on realistic IT Helpdesk triage and incident management tasks.
