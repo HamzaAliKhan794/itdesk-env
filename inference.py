@@ -14,6 +14,7 @@ from itdesk_env.graders import Grader
 ENV_URL = "http://127.0.0.1:8000"
 
 # Defaults optimized for Hugging Face Router
+# Defaults optimized for Hugging Face Router
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
 DEFAULT_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
@@ -27,12 +28,15 @@ def get_model_name() -> str:
     return os.environ.get("MODEL_NAME", DEFAULT_MODEL_NAME)
 
 def get_client() -> OpenAI:
-    # Explicitly matches validator expectation syntax securely
+    # Explicit Hackathon Phase 2 Validator Syntax Standard
+    # Initialize your OpenAI client with base_url=os.environ["API_BASE_URL"] and api_key=os.environ["API_KEY"].
     if "API_BASE_URL" in os.environ and "API_KEY" in os.environ:
-         return OpenAI(base_url=os.environ["API_BASE_URL"], api_key=os.environ["API_KEY"])
-    api_key = get_api_key()
-    if api_key:
-         return OpenAI(base_url=get_base_url(), api_key=api_key)
+         return OpenAI(
+             base_url=os.environ["API_BASE_URL"],
+             api_key=os.environ["API_KEY"]
+         )
+    elif get_api_key():
+         return OpenAI(base_url=get_base_url(), api_key=get_api_key())
     return None
 
 def is_llm_enabled() -> bool:
@@ -247,8 +251,8 @@ def run_task(task_name: str) -> float:
             action_dict = None
             
             if is_llm_enabled():
+                local_client = get_client()
                 try:
-                    local_client = get_client()
                     completion = local_client.chat.completions.create(
                         model=get_model_name(),
                         messages=[
@@ -260,8 +264,9 @@ def run_task(task_name: str) -> float:
                     response_text = completion.choices[0].message.content
                     action_dict = parse_llm_response(response_text)
                 except Exception as e:
-                    print(f"LLM Call Failed: {e}. Defaulting to rule-based fallback agent.")
-                    action_dict = choose_fallback_action(observation)
+                    # Print out strict proxy errors to expose Phase 2 LiteLLM issues dynamically
+                    print(f"CRITICAL PROXY ERROR: {e}")
+                    raise e # Hard fail so the validator doesn't mistake Fallback for success!
             else:
                 # LLM bypass mechanism natively triggers the fallback logic
                 action_dict = choose_fallback_action(observation)
