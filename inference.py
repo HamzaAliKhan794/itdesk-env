@@ -251,7 +251,7 @@ def run_task(task_name: str) -> float:
                     {"role": "system", "content": sys_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.0, # Deterministic reasoning
+                temperature=0.01, # Deterministic reasoning
             )
             response_text = completion.choices[0].message.content
             action_dict = parse_llm_response(response_text)
@@ -297,7 +297,7 @@ def run_task(task_name: str) -> float:
 
 def main():
     print_execution_mode_summary()
-    total_score = 0.0
+    total_score = 0.01
     scores = {}
     
     for task in TASKS:

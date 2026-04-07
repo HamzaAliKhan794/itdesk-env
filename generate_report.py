@@ -4,7 +4,7 @@ import numpy as np
 def create_radar_chart():
     # Default visual scores reflecting Llama 3's capabilities in the OpenEnv benchmark
     labels = np.array(['Reasoning Accuracy', 'Escalation Safety', 'Schema Compliance', 'Workflow Speed'])
-    scores = np.array([0.85, 0.95, 1.0, 0.70]) # Adjusted purely for the visual demo
+    scores = np.array([0.85, 0.95, 0.99, 0.70]) # Adjusted purely for the visual demo
 
     angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False)
     
@@ -22,7 +22,7 @@ def create_radar_chart():
     ax.set_thetagrids(angles[:-1] * 180/np.pi, labels, fontsize=11)
     
     plt.title("Meta Llama-3 OpenEnv Performance Metrics", size=15, color="black", y=1.1, fontweight="bold")
-    ax.set_ylim(0, 1.0)
+    ax.set_ylim(0, 0.99)
     
     plt.legend(loc='upper right', bbox_to_anchor=(1.1, 1.1))
     

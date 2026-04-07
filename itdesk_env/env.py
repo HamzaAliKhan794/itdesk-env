@@ -55,7 +55,7 @@ class ITDeskEnv:
         
         return StepResult(
             observation=self.current_observation,
-            reward=0.0,
+            reward=0.01,
             done=False,
             info={}
         )
@@ -65,7 +65,7 @@ class ITDeskEnv:
         if self.current_state is None or self.current_observation is None:
             raise RuntimeError("Environment not initialized. Call reset() first.")
             
-        reward = 0.0
+        reward = 0.01
         done = False
         info: Dict[str, Any] = {}
         

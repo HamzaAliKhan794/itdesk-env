@@ -8,11 +8,11 @@ from itdesk_env.models import State
 def grade_easy(state: State) -> float:
     """
     Evaluate the easy task (Single user login issue).
-    Max score 1.0. Deductions for unsafe escalation or wrong routing.
+    Max score 0.99. Deductions for unsafe escalation or wrong routing.
     """
-    score = 0.0
+    score = 0.01
     
-    # Positive points (Max 1.0)
+    # Positive points (Max 0.99)
     if state.classification == "access_issue":
         score += 0.2
     if state.priority == "low":
@@ -38,9 +38,9 @@ def grade_medium(state: State) -> float:
     Evaluate the medium task (VPN/network outage cluster).
     Requires duplicate detection and high priority network routing.
     """
-    score = 0.0
+    score = 0.01
     
-    # Positive points (Max 1.0)
+    # Positive points (Max 0.99)
     if state.classification == "network_issue":
         score += 0.2
     if state.priority == "high":
@@ -68,9 +68,9 @@ def grade_hard(state: State) -> float:
     Evaluate the hard task (Phishing/Ransomware security escalation).
     Strictly requires critical priority, security ops team, and immediate escalation.
     """
-    score = 0.0
+    score = 0.01
     
-    # Positive points (Max 1.0)
+    # Positive points (Max 0.99)
     if state.classification == "security_issue":
         score += 0.2
     if state.priority == "critical":

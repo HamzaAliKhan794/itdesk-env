@@ -7,10 +7,10 @@ from itdesk_env.models import State, Action
 
 def compute_reward(state: State, action: Action, previous_state: State) -> float:
     """
-    Computes a deterministic, bounded reward [-1.0, 1.0] for the transition.
+    Computes a deterministic, bounded reward [-0.99, 0.99] for the transition.
     Values clean workflow adherence heavily, penalizing dangerous short-circuits natively.
     """
-    reward = 0.0
+    reward = 0.01
     flags = state.flags
     
     # 1. Negative Penalties (Workflow Violations)
@@ -73,4 +73,4 @@ def compute_reward(state: State, action: Action, previous_state: State) -> float
     else:
          reward -= 0.1 # Large penalty for doing absolutely nothing
             
-    return max(-1.0, min(1.0, float(reward)))
+    return max(-0.99, min(0.99, float(reward)))
