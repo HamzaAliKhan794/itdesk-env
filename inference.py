@@ -17,28 +17,28 @@ ENV_URL = "http://127.0.0.1:8000"
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
 DEFAULT_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
-API_BASE_URL = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
-MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
-API_KEY = os.getenv("API_KEY")
-HF_TOKEN = os.getenv("HF_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-grader = Grader()
-TASKS = ["easy", "medium", "hard"]
-
 def get_api_key() -> str:
-    """Return the prioritized API key."""
-    if API_KEY:
-        return API_KEY
-    elif HF_TOKEN:
-        return HF_TOKEN
-    elif OPENAI_API_KEY:
-        return OPENAI_API_KEY
-    return ""
+    return os.environ.get("API_KEY") or os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
+
+def get_base_url() -> str:
+    return os.environ.get("API_BASE_URL", DEFAULT_API_BASE_URL)
+
+def get_model_name() -> str:
+    return os.environ.get("MODEL_NAME", DEFAULT_MODEL_NAME)
+
+def get_client() -> OpenAI:
+    # Explicitly matches validator expectation syntax securely
+    if "API_BASE_URL" in os.environ and "API_KEY" in os.environ:
+         return OpenAI(base_url=os.environ["API_BASE_URL"], api_key=os.environ["API_KEY"])
+    api_key = get_api_key()
+    if api_key:
+         return OpenAI(base_url=get_base_url(), api_key=api_key)
+    return None
 
 def is_llm_enabled() -> bool:
     """Determine if we actually have an API key to execute live LLM prediction calls."""
-    return bool(API_KEY or HF_TOKEN or OPENAI_API_KEY)
+    return get_api_key() != ""
+
 
 def print_execution_mode_summary() -> None:
     """Print transparency logs about the agent inference configuration securely."""
@@ -46,26 +46,23 @@ def print_execution_mode_summary() -> None:
     print(" ITDesk-Env Evaluation Initialization")
     print("========================================")
     print(f"Target Environment : {ENV_URL}")
-    print(f"API Base URL       : {API_BASE_URL}")
-    print(f"Target Model       : {MODEL_NAME}")
+    print(f"API Base URL       : {get_base_url()}")
+    print(f"Target Model       : {get_model_name()}")
     
-    if API_KEY:
+    if os.environ.get("API_KEY"):
         print("Execution Mode     : OpenEnv Proxy Mode (API_KEY detected)")
-    elif HF_TOKEN:
+    elif os.environ.get("HF_TOKEN"):
         print("Execution Mode     : Hugging Face Router Mode (HF_TOKEN detected)")
-    elif OPENAI_API_KEY:
+    elif os.environ.get("OPENAI_API_KEY"):
         print("Execution Mode     : OpenAI Fallback Mode (OPENAI_API_KEY detected)")
     else:
         print("Execution Mode     : Fallback Heuristic Mode (No API keys mapped. Using rule-based fallback agent.)")
     print("========================================\n")
 
-# Initialize client globally but robustly if keys exist
-client = None
-if is_llm_enabled():
-    client = OpenAI(
-        api_key=get_api_key(),
-        base_url=API_BASE_URL
-    )
+grader = Grader()
+TASKS = ["easy", "medium", "hard"]
+
+
 
 def call_reset() -> dict:
     """Call the reset endpoint to spin up a new ticket."""
@@ -251,8 +248,9 @@ def run_task(task_name: str) -> float:
             
             if is_llm_enabled():
                 try:
-                    completion = client.chat.completions.create(
-                        model=MODEL_NAME,
+                    local_client = get_client()
+                    completion = local_client.chat.completions.create(
+                        model=get_model_name(),
                         messages=[
                             {"role": "system", "content": sys_prompt},
                             {"role": "user", "content": user_prompt}
