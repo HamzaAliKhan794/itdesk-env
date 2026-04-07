@@ -19,6 +19,7 @@ DEFAULT_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
 API_BASE_URL = os.getenv("API_BASE_URL", DEFAULT_API_BASE_URL)
 MODEL_NAME = os.getenv("MODEL_NAME", DEFAULT_MODEL_NAME)
+API_KEY = os.getenv("API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -27,7 +28,9 @@ TASKS = ["easy", "medium", "hard"]
 
 def get_api_key() -> str:
     """Return the prioritized API key."""
-    if HF_TOKEN:
+    if API_KEY:
+        return API_KEY
+    elif HF_TOKEN:
         return HF_TOKEN
     elif OPENAI_API_KEY:
         return OPENAI_API_KEY
@@ -35,7 +38,7 @@ def get_api_key() -> str:
 
 def is_llm_enabled() -> bool:
     """Determine if we actually have an API key to execute live LLM prediction calls."""
-    return bool(HF_TOKEN or OPENAI_API_KEY)
+    return bool(API_KEY or HF_TOKEN or OPENAI_API_KEY)
 
 def print_execution_mode_summary() -> None:
     """Print transparency logs about the agent inference configuration securely."""
@@ -46,7 +49,9 @@ def print_execution_mode_summary() -> None:
     print(f"API Base URL       : {API_BASE_URL}")
     print(f"Target Model       : {MODEL_NAME}")
     
-    if HF_TOKEN:
+    if API_KEY:
+        print("Execution Mode     : OpenEnv Proxy Mode (API_KEY detected)")
+    elif HF_TOKEN:
         print("Execution Mode     : Hugging Face Router Mode (HF_TOKEN detected)")
     elif OPENAI_API_KEY:
         print("Execution Mode     : OpenAI Fallback Mode (OPENAI_API_KEY detected)")
