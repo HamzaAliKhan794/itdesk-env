@@ -18,30 +18,25 @@ ENV_URL = "http://127.0.0.1:8000"
 DEFAULT_API_BASE_URL = "https://router.huggingface.co/v1"
 DEFAULT_MODEL_NAME = "Qwen/Qwen2.5-7B-Instruct"
 
-def get_api_key() -> str:
-    return os.environ.get("API_KEY") or os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY", "")
+# Ensure keys exist natively to avoid local KeyErrors while matching strict AST expectations
+if "API_BASE_URL" not in os.environ:
+    os.environ["API_BASE_URL"] = DEFAULT_API_BASE_URL
+    
+if "API_KEY" not in os.environ:
+    os.environ["API_KEY"] = os.environ.get("OPENAI_API_KEY") or os.environ.get("HF_TOKEN") or ""
 
-def get_base_url() -> str:
-    return os.environ.get("API_BASE_URL", DEFAULT_API_BASE_URL)
+if "MODEL_NAME" not in os.environ:
+    os.environ["MODEL_NAME"] = DEFAULT_MODEL_NAME
 
-def get_model_name() -> str:
-    return os.environ.get("MODEL_NAME", DEFAULT_MODEL_NAME)
-
-def get_client() -> OpenAI:
-    # Explicit Hackathon Phase 2 Validator Syntax Standard
-    # Initialize your OpenAI client with base_url=os.environ["API_BASE_URL"] and api_key=os.environ["API_KEY"].
-    if "API_BASE_URL" in os.environ and "API_KEY" in os.environ:
-         return OpenAI(
-             base_url=os.environ["API_BASE_URL"],
-             api_key=os.environ["API_KEY"]
-         )
-    elif get_api_key():
-         return OpenAI(base_url=get_base_url(), api_key=get_api_key())
-    return None
+# AST Compliance: This must remain exactly in this syntax at global scope!
+client = OpenAI(
+    base_url=os.environ["API_BASE_URL"],
+    api_key=os.environ["API_KEY"]
+)
 
 def is_llm_enabled() -> bool:
     """Determine if we actually have an API key to execute live LLM prediction calls."""
-    return get_api_key() != ""
+    return bool(os.environ["API_KEY"])
 
 
 def print_execution_mode_summary() -> None:
@@ -50,8 +45,8 @@ def print_execution_mode_summary() -> None:
     print(" ITDesk-Env Evaluation Initialization")
     print("========================================")
     print(f"Target Environment : {ENV_URL}")
-    print(f"API Base URL       : {get_base_url()}")
-    print(f"Target Model       : {get_model_name()}")
+    print(f"API Base URL       : {os.environ['API_BASE_URL']}")
+    print(f"Target Model       : {os.environ['MODEL_NAME']}")
     
     if os.environ.get("API_KEY"):
         print("Execution Mode     : OpenEnv Proxy Mode (API_KEY detected)")
@@ -251,10 +246,9 @@ def run_task(task_name: str) -> float:
             action_dict = None
             
             if is_llm_enabled():
-                local_client = get_client()
                 try:
-                    completion = local_client.chat.completions.create(
-                        model=get_model_name(),
+                    completion = client.chat.completions.create(
+                        model=os.environ["MODEL_NAME"],
                         messages=[
                             {"role": "system", "content": sys_prompt},
                             {"role": "user", "content": user_prompt}
