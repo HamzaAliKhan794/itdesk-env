@@ -107,5 +107,11 @@ def grade_task(task_name: str, state: State) -> float:
 
 class Grader:
     """Evaluation envelope natively compatible with OpenEnv workflows."""
-    def evaluate(self, state: State, task_name: str) -> float:
+    def evaluate(self, state, task_name: str) -> float:
+        from itdesk_env.models import State
+        if isinstance(state, dict):
+            if "internal_state" in state:
+                state = State(**state["internal_state"])
+            else:
+                state = State(**state)
         return grade_task(task_name, state)

@@ -8,6 +8,9 @@ entrypoint:
 agent:
   module: inference
 
+evaluator:
+  module: itdesk_env.graders
+
 observation_space:
   type: structured
 
