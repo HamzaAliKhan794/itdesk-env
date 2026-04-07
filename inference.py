@@ -11,7 +11,7 @@ from openai import OpenAI
 from itdesk_env.graders import Grader
 
 # --- Configuration ---
-ENV_URL = os.environ.get("OPENENV_URL", "http://127.0.0.1:8000")
+ENV_URL = os.environ.get("OPENENV_URL", "http://127.0.0.1:7860")
 
 # Defaults optimized for Hugging Face Router
 # Defaults optimized for Hugging Face Router
