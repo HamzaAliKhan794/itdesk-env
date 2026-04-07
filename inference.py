@@ -63,9 +63,12 @@ TASKS = ["easy", "medium", "hard"]
 
 
 
-def call_reset() -> dict:
+def call_reset(difficulty: str = None) -> dict:
     """Call the reset endpoint to spin up a new ticket."""
-    response = requests.post(f"{ENV_URL}/reset", json={})
+    payload = {}
+    if difficulty:
+        payload["difficulty"] = difficulty
+    response = requests.post(f"{ENV_URL}/reset", json=payload)
     response.raise_for_status()
     return response.json()
 
@@ -216,18 +219,15 @@ def run_task(task_name: str) -> float:
     """Run an entire trajectory for a specific task and evaluate the final score."""
     print(f"[START] Task: {task_name.upper()}")
     
-    observation = None
-    # Loop reset until the randomly selected scenario matches the requested task
-    for _ in range(50):
-        obs = call_reset()
-        task_tag_map = {"easy": "-E", "medium": "-M", "hard": "-H"}
-        if task_tag_map[task_name] in obs.get("ticket_id", ""):
-            observation = obs
-            break
+    try:
+        observation = call_reset(task_name)
+    except Exception as e:
+        print(f"Error resetting environment for {task_name}: {e}")
+        observation = None
             
     if not observation:
          print(f"Failed to cleanly initialize {task_name} task.")
-         return 0.0
+         return 0.01
          
     # Initialize an empty log file for dashboard when task starts
     try:
