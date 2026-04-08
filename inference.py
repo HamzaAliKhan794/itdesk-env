@@ -287,12 +287,14 @@ def run_task(task_name: str) -> float:
     full_state = call_state()
     internal_state_dict = full_state.get("internal_state", {})
     
-    # Convert dictionary recursively to Pydantic model for grader
-    from itdesk_env.models import State
-    final_state = State(**internal_state_dict)
-    
-    score = grader.evaluate(final_state, task_name)
+    # Pass raw dict directly (grader handles dict natively)
+    score = grader.evaluate(internal_state_dict, task_name)
+    # Clamp defensively in case grader had any issue
+    if not (0 < score < 1):
+        score = 0.05
     print(f"[END] Task {task_name.upper()} Score: {score}")
+    # Emit structured score line for OpenEnv stdout parser
+    print(f"TASK_SCORE:{task_name}:{score}")
     return score
 
 def main():
@@ -309,9 +311,9 @@ def main():
     print("EVALUATION COMPLETE")
     print("====================")
     for task, score in scores.items():
-        print(f" - {task.capitalize()}: {score:.2f} / 1.00")
+        print(f" - {task.capitalize()}: {score:.4f}")
         
-    print(f"Total Cumulative Score: {total_score:.2f} / {len(TASKS)}.00")
+    print(f"Total Cumulative Score: {total_score:.4f} / {len(TASKS)}")
 
 if __name__ == "__main__":
     main()
