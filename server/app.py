@@ -71,6 +71,14 @@ def get_state() -> Dict[str, Any]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/score")
+def get_score() -> float:
+    """Returns the final grader score dynamically for the OpenEnv validator framework."""
+    try:
+        return env.score()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 def main():
     import uvicorn
     uvicorn.run("server.app:app", host="0.0.0.0", port=7860)

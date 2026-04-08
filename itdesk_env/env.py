@@ -37,6 +37,7 @@ class ITDeskEnv:
             task_def = TaskManager.get_task(task_name)
             
         self.current_state = task_def.initial_state.model_copy(deep=True)
+        self.current_state.task_name = difficulty if difficulty else task_name
         self.current_observation = task_def.initial_observation.model_copy(deep=True)
         
         # Sync environment step tracking dynamically to the task constraints
@@ -128,3 +129,19 @@ class ITDeskEnv:
             "internal_state": self.current_state.model_dump(),
             "observation": self.current_observation.model_dump() if self.current_observation else {}
         }
+
+    def score(self) -> float:
+        """Returns the final grader score dynamically for the OpenEnv validator framework."""
+        if not self.current_state:
+            return 0.01
+        
+        from itdesk_env.graders import Grader
+        grader = Grader()
+        
+        # safely extract the correct task name
+        task_name = getattr(self.current_state, "task_name", "easy")
+        if task_name is None:
+             task_name = "easy"
+             
+        final_score = grader.evaluate(self.current_state, task_name)
+        return float(final_score)
