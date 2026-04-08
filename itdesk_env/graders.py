@@ -1,124 +1,145 @@
 """
 Deterministic evaluators for ITDesk-Env tasks.
-Checks if a given trajectory or final state meets the task objectives successfully.
+Checks if a given trajectory or final state meets the task objectives.
+All scores are guaranteed to be strictly between 0 and 1 (exclusive).
 """
 
-from itdesk_env.models import State
 
-def grade_easy(state: State) -> float:
+def _clamp(value: float) -> float:
+    """Ensure the score is strictly inside (0, 1) exclusive."""
+    lo = 0.01
+    hi = 0.99
+    if value < lo:
+        return lo
+    if value > hi:
+        return hi
+    return value
+
+
+def _to_state(state) -> dict:
+    """Normalize state to a plain dict regardless of input type."""
+    if isinstance(state, dict):
+        inner = state.get("internal_state")
+        if isinstance(inner, dict):
+            return inner
+        return state
+    # Pydantic model or any object with __dict__
+    if hasattr(state, "model_dump"):
+        return state.model_dump()
+    if hasattr(state, "__dict__"):
+        return state.__dict__
+    return {}
+
+
+def grade_easy(state) -> float:
     """
-    Evaluate the easy task (Single user login issue).
-    Max score 0.99. Deductions for unsafe escalation or wrong routing.
+    Evaluate the easy task: single user login/access issue.
+    Correct flow: classify as access_issue, priority low, team access_support, resolve.
     """
-    score = 0.01
-    
-    # Positive points (Max 0.99)
-    if state.classification == "access_issue":
+    d = _to_state(state)
+    score = 0.05
+
+    if d.get("classification") == "access_issue":
         score += 0.2
-    if state.priority == "low":
+    if d.get("priority") == "low":
         score += 0.2
-    if state.assigned_team == "access_support":
-        score += 0.4
-    if state.resolved:
-        score += 0.2
-        
-    # Negative penalties bounds
-    if state.escalated:
-        score -= 0.3  # Penalty for unnecessarily escalating a simple password reset
-    if state.duplicate_flag:
-        score -= 0.1  # Not a duplicate cluster
-    if state.assigned_team in ["security_ops", "network_team"]:
-        score -= 0.2  # Wrong team
-        
-    return max(0.01, min(0.99, score))
+    if d.get("assigned_team") == "access_support":
+        score += 0.35
+    if d.get("resolved") is True:
+        score += 0.15
+
+    if d.get("escalated") is True:
+        score -= 0.25
+    if d.get("duplicate_flag") is True:
+        score -= 0.1
+    if d.get("assigned_team") in ["security_ops", "network_team"]:
+        score -= 0.2
+
+    return _clamp(score)
 
 
-def grade_medium(state: State) -> float:
+def grade_medium(state) -> float:
     """
-    Evaluate the medium task (VPN/network outage cluster).
-    Requires duplicate detection and high priority network routing.
+    Evaluate the medium task: VPN/network outage cluster.
+    Correct flow: classify as network_issue, priority high, team network_team, flag duplicate, resolve.
     """
-    score = 0.01
-    
-    # Positive points (Max 0.99)
-    if state.classification == "network_issue":
+    d = _to_state(state)
+    score = 0.05
+
+    if d.get("classification") == "network_issue":
         score += 0.2
-    if state.priority == "high":
+    if d.get("priority") == "high":
         score += 0.2
-    if state.assigned_team == "network_team":
+    if d.get("assigned_team") == "network_team":
         score += 0.2
-    if state.duplicate_flag:
+    if d.get("duplicate_flag") is True:
         score += 0.2
-    if state.resolved:
-        score += 0.2
-        
-    # Negative penalties bounds
-    if state.escalated:
-        score -= 0.3  # Penalty: Outages are high priority but rarely security escalations
-    if state.assigned_team == "security_ops":
-        score -= 0.3  # Penalty: Wasting security team's time
-    if state.assigned_team == "access_support":
-        score -= 0.2  # Penalty: Standard tier 1 cannot handle VPN router drops
-        
-    return max(0.01, min(0.99, score))
+    if d.get("resolved") is True:
+        score += 0.1
+
+    if d.get("escalated") is True:
+        score -= 0.25
+    if d.get("assigned_team") == "security_ops":
+        score -= 0.25
+    if d.get("assigned_team") == "access_support":
+        score -= 0.15
+
+    return _clamp(score)
 
 
-def grade_hard(state: State) -> float:
+def grade_hard(state) -> float:
     """
-    Evaluate the hard task (Phishing/Ransomware security escalation).
-    Strictly requires critical priority, security ops team, and immediate escalation.
+    Evaluate the hard task: ransomware/phishing security escalation.
+    Correct flow: classify security_issue, critical priority, security_ops, escalate, resolve.
     """
-    score = 0.01
-    
-    # Positive points (Max 0.99)
-    if state.classification == "security_issue":
+    d = _to_state(state)
+    score = 0.05
+
+    if d.get("classification") == "security_issue":
         score += 0.2
-    if state.priority == "critical":
+    if d.get("priority") == "critical":
         score += 0.2
-    if state.assigned_team == "security_ops":
+    if d.get("assigned_team") == "security_ops":
         score += 0.2
-    if state.escalated:
+    if d.get("escalated") is True:
         score += 0.2
-    if state.resolved:
-        score += 0.2
-        
-    # Negative penalties bounds
-    if not state.escalated:
-        score -= 0.5  # Massive penalty for failing to escalate a cyber breach
-    if state.assigned_team in ["access_support", "network_team"]:
-        score -= 0.4  # Dangerous to send a live breach to standard IT operations
-    if state.priority in ["low", "medium"]:
-        score -= 0.3  # Dangerous underscoping of digital threat
-        
-    return max(0.01, min(0.99, score))
+    if d.get("resolved") is True:
+        score += 0.1
+
+    if d.get("escalated") is not True:
+        score -= 0.35
+    if d.get("assigned_team") in ["access_support", "network_team"]:
+        score -= 0.35
+    if d.get("priority") in ["low", "medium"]:
+        score -= 0.25
+
+    return _clamp(score)
 
 
-def grade_task(task_name: str, state: State) -> float:
-    """Route to the correct task grader deterministically."""
-    task_name = task_name.lower().strip()
-    if task_name == "easy":
-         return grade_easy(state)
-    elif task_name == "medium":
-         return grade_medium(state)
-    elif task_name == "hard":
-         return grade_hard(state)
-    return 0.01
+def grade_task(task_name: str, state) -> float:
+    """Route to the correct task grader by name."""
+    name = str(task_name).lower().strip()
+    if name == "easy":
+        return grade_easy(state)
+    elif name == "medium":
+        return grade_medium(state)
+    elif name == "hard":
+        return grade_hard(state)
+    # Unknown task name: return a safe default score
+    return 0.05
 
 
 class Grader:
-    """Evaluation envelope natively compatible with OpenEnv workflows."""
+    """Evaluation class compatible with OpenEnv workflows."""
+
     def evaluate(self, state, task_name: str) -> float:
-        from itdesk_env.models import State
-        if isinstance(state, dict):
-            if "internal_state" in state:
-                state = State(**state["internal_state"])
-            else:
-                state = State(**state)
         return grade_task(task_name, state)
 
-# Expose a module-level evaluate function for OpenEnv reflection handlers
+
+# Module-level hooks for OpenEnv dynamic reflection
 def evaluate(state, task_name: str) -> float:
-    return Grader().evaluate(state, task_name)
+    return grade_task(task_name, state)
+
 
 def score(state, task_name: str) -> float:
-    return evaluate(state, task_name)
+    return grade_task(task_name, state)
