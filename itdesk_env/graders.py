@@ -115,3 +115,10 @@ class Grader:
             else:
                 state = State(**state)
         return grade_task(task_name, state)
+
+# Expose a module-level evaluate function for OpenEnv reflection handlers
+def evaluate(state, task_name: str) -> float:
+    return Grader().evaluate(state, task_name)
+
+def score(state, task_name: str) -> float:
+    return evaluate(state, task_name)
