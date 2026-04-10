@@ -215,9 +215,22 @@ def choose_fallback_action(observation: dict) -> dict:
     # Loop fallback catch
     return {"action_type": "noop", "parameters": {}}
 
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+def log_step(step: int, action: str, reward: float, done: bool, error: str) -> None:
+    error_val = error if error else "null"
+    done_val = str(done).lower()
+    print(f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}", flush=True)
+
+def log_end(success: bool, steps: int, score: float, rewards: list) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
+
 def run_task(task_name: str) -> float:
     """Run an entire trajectory for a specific task and evaluate the final score."""
-    print(f"[START] Task: {task_name.upper()}")
+    model_name = os.environ.get("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
+    log_start(task=task_name, env="itdesk", model=model_name)
     
     try:
         observation = call_reset(task_name)
@@ -239,6 +252,7 @@ def run_task(task_name: str) -> float:
     done = False
     step_count = 0
     max_steps = observation.get("max_steps", 15)
+    rewards = []
     
     while not done and step_count < max_steps:
         sys_prompt, user_prompt = format_prompt(observation)
@@ -259,8 +273,6 @@ def run_task(task_name: str) -> float:
             # LLM bypass mechanism natively triggers the fallback logic
             action_dict = choose_fallback_action(observation)
             
-        print(f"[STEP] Action: {action_dict.get('action_type')} | Parameters: {action_dict.get('parameters')}")
-        
         # Centralized Dashboard Telemetry Logging
         thought = action_dict.get("thought", "Determined via deterministic fallback heuristics.")
         clean_action = {
@@ -275,12 +287,25 @@ def run_task(task_name: str) -> float:
             pass
         
         step_res = call_step(action_dict)
+        reward = 0.0
         if step_res:
             observation = step_res.get("observation", {})
             done = step_res.get("done", True)
+            reward = float(step_res.get("reward", 0.0))
         else:
             done = True
+        
+        rewards.append(reward)
         step_count += 1
+        
+        action_type = action_dict.get('action_type', 'noop')
+        # Format the parameters into a string safely without spaces to avoid breaking format parser
+        params_str = ""
+        if action_dict.get('parameters'):
+            params_str = str(action_dict.get('parameters')).replace(" ", "")
+        
+        log_step(step=step_count, action=f"{action_type}({params_str})", reward=reward, done=done, error=None)
+        
         time.sleep(0.1) # Prevent local thread flooding
         
     # Get final internal state for grading
@@ -292,9 +317,13 @@ def run_task(task_name: str) -> float:
     # Clamp defensively in case grader had any issue
     if not (0 < score < 1):
         score = 0.05
-    print(f"[END] Task {task_name.upper()} Score: {score}")
-    # Emit structured score line for OpenEnv stdout parser
-    print(f"TASK_SCORE:{task_name}:{score}")
+        
+    score = float(score)
+    if score >= 1.0: score = 0.99
+    if score <= 0.0: score = 0.01
+    
+    success = score > 0.5
+    log_end(success=success, steps=step_count, score=score, rewards=rewards)
     return score
 
 def main():
